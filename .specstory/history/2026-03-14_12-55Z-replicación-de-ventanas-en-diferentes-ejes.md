@@ -8,7 +8,7 @@ _**User (2026-03-14 12:55Z)**_
 
 Replica las mismas ventanas, pero en vez de ser orientadas en el eje X (lado más largo), su lado más largo será en el eje Z
 
-@main.js (52-182) 
+@main.js (52-182)
 
 Es decir son unas ventanas que están mirando hacia el Norte (planas en eje X y largas en eje Z) y debes copiarlas y replicarlas mirando hacia el Este (largas en eje Z y planas en eje X)
 
@@ -130,7 +130,7 @@ Status: **completed**
 <tool-use data-tool-type="generic" data-tool-name="read_lints">
 <details>
           <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
-      
+
 Lint paths:
 
 - `/home/starklord/Projects/threejs/3d-web/main.js`
@@ -223,9 +223,9 @@ Lines added: 262, lines removed: undefined
 @@ -313,4 +313,266 @@
   vidrio2VentanaExteriorZ2Piso1.position.set(-3.5, 3.2, -2);
   scene.add(vidrio2VentanaExteriorZ2Piso1);
-+ 
++
 + // Ventanas piso 1 (cara Sur y cara Este, Y duplicado)
-+ 
++
 + // Ventana exterior 1 piso 1 (cara Sur, Y duplicado)
 + // Top
 + const ventanaExteriorX1TopPiso1Sur = new THREE.Mesh(
@@ -290,7 +290,7 @@ Lines added: 262, lines removed: undefined
 + );
 + vidrio2VentanaExteriorX1Piso1Sur.position.set(1, 6.4, 3.5);
 + scene.add(vidrio2VentanaExteriorX1Piso1Sur);
-+ 
++
 + // Ventana exterior 2 piso 1 (cara Sur, Y duplicado)
 + // Top
 + const ventanaExteriorX2TopPiso1Sur = new THREE.Mesh(
@@ -355,7 +355,7 @@ Lines added: 262, lines removed: undefined
 + );
 + vidrio2VentanaExteriorX2Piso1Sur.position.set(-1, 6.4, 3.5);
 + scene.add(vidrio2VentanaExteriorX2Piso1Sur);
-+ 
++
 + // Ventana exterior 1 piso 1 (cara Este, Y duplicado)
 + // Top
 + const ventanaExteriorZ1TopPiso1Este = new THREE.Mesh(
@@ -420,7 +420,7 @@ Lines added: 262, lines removed: undefined
 + );
 + vidrio2VentanaExteriorZ1Piso1Este.position.set(3.5, 6.4, 1);
 + scene.add(vidrio2VentanaExteriorZ1Piso1Este);
-+ 
++
 + // Ventana exterior 2 piso 1 (cara Este, Y duplicado)
 + // Top
 + const ventanaExteriorZ2TopPiso1Este = new THREE.Mesh(
@@ -485,7 +485,7 @@ Lines added: 262, lines removed: undefined
 + );
 + vidrio2VentanaExteriorZ2Piso1Este.position.set(3.5, 6.4, -2);
 + scene.add(vidrio2VentanaExteriorZ2Piso1Este);
-  
+
   // Hemisferio de luz piso 1
 ```
 
@@ -508,7 +508,7 @@ Lines added: 262, lines removed: undefined
 <tool-use data-tool-type="generic" data-tool-name="read_lints">
 <details>
           <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
-      
+
 Lint paths:
 
 - `/home/starklord/Projects/threejs/3d-web/main.js`
@@ -625,7 +625,7 @@ Lines added: 2, lines removed: 2
 ```diff
 @@ -316,11 +316,11 @@
   // Ventanas piso 1 (cara Sur y cara Este, Y duplicado)
-  
+
 - // Ventana exterior 1 piso 1 (cara Sur, Y duplicado)
 + // Ventana exterior 1 piso 1 (cara Sur, Y + altura pared)
   // Top
@@ -740,7 +740,7 @@ Lines added: 1, lines removed: 1
 - vidrio2VentanaExteriorX1Piso1Sur.position.set(1, 6.4, 3.5);
 + vidrio2VentanaExteriorX1Piso1Sur.position.set(1, 8.2, 3.5);
   scene.add(vidrio2VentanaExteriorX1Piso1Sur);
-  
+
 ```
 
 </details>
@@ -759,7 +759,7 @@ Lines added: 2, lines removed: 2
 ```diff
 @@ -381,11 +381,11 @@
   scene.add(vidrio2VentanaExteriorX1Piso1Sur);
-  
+
 - // Ventana exterior 2 piso 1 (cara Sur, Y duplicado)
 + // Ventana exterior 2 piso 1 (cara Sur, Y + altura pared)
   // Top
@@ -874,7 +874,7 @@ Lines added: 1, lines removed: 1
 - vidrio2VentanaExteriorX2Piso1Sur.position.set(-1, 6.4, 3.5);
 + vidrio2VentanaExteriorX2Piso1Sur.position.set(-1, 8.2, 3.5);
   scene.add(vidrio2VentanaExteriorX2Piso1Sur);
-  
+
 ```
 
 </details>
@@ -893,7 +893,7 @@ Lines added: 2, lines removed: 2
 ```diff
 @@ -446,11 +446,11 @@
   scene.add(vidrio2VentanaExteriorX2Piso1Sur);
-  
+
 - // Ventana exterior 1 piso 1 (cara Este, Y duplicado)
 + // Ventana exterior 1 piso 1 (cara Este, Y + altura pared)
   // Top
@@ -1008,7 +1008,7 @@ Lines added: 1, lines removed: 1
 - vidrio2VentanaExteriorZ1Piso1Este.position.set(3.5, 6.4, 1);
 + vidrio2VentanaExteriorZ1Piso1Este.position.set(3.5, 8.2, 1);
   scene.add(vidrio2VentanaExteriorZ1Piso1Este);
-  
+
 ```
 
 </details>
@@ -1027,7 +1027,7 @@ Lines added: 2, lines removed: 2
 ```diff
 @@ -511,11 +511,11 @@
   scene.add(vidrio2VentanaExteriorZ1Piso1Este);
-  
+
 - // Ventana exterior 2 piso 1 (cara Este, Y duplicado)
 + // Ventana exterior 2 piso 1 (cara Este, Y + altura pared)
   // Top
@@ -1142,7 +1142,7 @@ Lines added: 1, lines removed: 1
 - vidrio2VentanaExteriorZ2Piso1Este.position.set(3.5, 6.4, -2);
 + vidrio2VentanaExteriorZ2Piso1Este.position.set(3.5, 8.2, -2);
   scene.add(vidrio2VentanaExteriorZ2Piso1Este);
-  
+
 ```
 
 </details>
@@ -1164,7 +1164,7 @@ Lines added: 1, lines removed: 1
 <tool-use data-tool-type="generic" data-tool-name="read_lints">
 <details>
           <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
-      
+
 Lint paths:
 
 - `/home/starklord/Projects/threejs/3d-web/main.js`
