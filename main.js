@@ -1,662 +1,333 @@
 import * as THREE from 'three';
 import { OrbitControls } from './orbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x3399ff);
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
 
-const renderer = new THREE.WebGLRenderer({ alpha: true });
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-
+renderer.outputColorSpace = THREE.SRGBColorSpace; // Asegura colores correctos en Three.js moderno
 document.body.appendChild(renderer.domElement);
 
-// Cube
-// const geometry = new THREE.BoxGeometry(1, 1, 1);
-// const material = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5, metalness: 0.5 });
-// const cube = new THREE.Mesh(geometry, material);
-// cube.castShadow = true;
-// cube.position.set(0, 1, 0);
-// scene.add(cube)
+/**
+ * Crea una ventana completa con marcos, vidrios y balcón opcional.
+ */
+function crearVentanaBase(x, y, z, orientacion = 'X', color = 0xffffff, esExterior = true) {
+  const group = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5, transparent: true }); // , opacity: 0.6
 
-// Edificio de 3 pisos
+  let frameGeomHoriz, frameGeomVert, glassGeom, balconGeom;
+  if (orientacion === 'X') {
+    frameGeomHoriz = new THREE.BoxGeometry(2, 0.2, 0.2);
+    frameGeomVert = new THREE.BoxGeometry(0.2, 2.3, 0.2);
+    glassGeom = new THREE.BoxGeometry(0.8, 2.2, 0.05);
+    balconGeom = new THREE.BoxGeometry(2.2, 0.3, 0.4);
+  } else {
+    frameGeomHoriz = new THREE.BoxGeometry(0.2, 0.2, 2);
+    frameGeomVert = new THREE.BoxGeometry(0.2, 2.3, 0.2);
+    glassGeom = new THREE.BoxGeometry(0.05, 2.2, 0.8);
+    balconGeom = new THREE.BoxGeometry(0.4, 0.3, 2.2);
+  }
 
-// Piso 1 con 2 paredes y un techo
+  // Partes del marco
+  const parts = [
+    { g: frameGeomHoriz, p: [0, 1.15, 0] },     // Superior
+    { g: frameGeomHoriz, p: [0, 0, 0] },        // Medio Horizontal
+    { g: frameGeomHoriz, p: [0, -1.1, 0] },     // Inferior
+    { g: frameGeomVert,  p: orientacion === 'X' ? [0.9, 0, 0] : [0, 0, 0.9] }, // Lado A
+    { g: frameGeomVert,  p: [0, 0, 0] },        // Medio Vertical
+    { g: frameGeomVert,  p: orientacion === 'X' ? [-0.9, 0, 0] : [0, 0, -0.9] }, // Lado B
+  ];
 
-// Pared izquierda con 2 ventanas
-const paredIzquierda1 = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 5, 7),
-  new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 })
-);
-paredIzquierda1.position.set(-3, 2.5, 0);
-scene.add(paredIzquierda1);
+  parts.forEach(part => {
+    const mesh = new THREE.Mesh(part.g, frameMat);
+    mesh.position.set(...part.p);
+    group.add(mesh);
+  });
 
-const paredDerecha1 = new THREE.Mesh(
-  new THREE.BoxGeometry(7, 5, 1),
-  new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 })
-);
-paredDerecha1.position.set(0, 2.5, -3);
-scene.add(paredDerecha1);
+  // Vidrios
+  const g1 = new THREE.Mesh(glassGeom, glassMat);
+  const g2 = new THREE.Mesh(glassGeom, glassMat);
+  if (orientacion === 'X') {
+    g1.position.set(0.5, 0, 0); g2.position.set(-0.5, 0, 0);
+  } else {
+    g1.position.set(0, 0, 0.5); g2.position.set(0, 0, -0.5);
+  }
+  group.add(g1, g2);
 
-const techo1 = new THREE.Mesh(
-  new THREE.BoxGeometry(7.2, 0.5, 7.2),
-  new THREE.MeshStandardMaterial({ color: 0xffccbb, roughness: 0.5 })
-);
-techo1.position.set(0, 5.25, 0);
-scene.add(techo1);
+  // Balcón (solo para exteriores)
+  if (esExterior) {
+    const balcon = new THREE.Mesh(balconGeom, frameMat);
+    balcon.position.set(0, -1.35, 0);
+    group.add(balcon);
+  }
 
-// Ventanas piso 1 (orientadas en eje X, mirando al Sur)
+  group.position.set(x, y, z);
+  return group;
+}
 
-// Ventana exterior 1 piso 1
-// Top
-const ventanaExteriorX1TopPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1TopPiso1.position.set(1.5, 4.35, -3.5);
-scene.add(ventanaExteriorX1TopPiso1);
-// Horizontal middle
-const ventanaExteriorX1HorizontalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1HorizontalPiso1.position.set(1.5, 3.2, -3.5);
-scene.add(ventanaExteriorX1HorizontalPiso1);
-// Bottom
-const ventanaExteriorX1BottomPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1BottomPiso1.position.set(1.5, 2.1, -3.5);
-scene.add(ventanaExteriorX1BottomPiso1);
-// Balcon
-const ventanaExteriorX1BalconPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2.2, 0.3, 0.4),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1BalconPiso1.position.set(1.5, 1.85, -3.5);
-scene.add(ventanaExteriorX1BalconPiso1);
-// Left
-const ventanaExteriorX1LeftPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1LeftPiso1.position.set(2.4, 3.2, -3.5);
-scene.add(ventanaExteriorX1LeftPiso1);
-// Vertical middle
-const ventanaExteriorX1VerticalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1VerticalPiso1.position.set(1.5, 3.2, -3.5);
-scene.add(ventanaExteriorX1VerticalPiso1);
-// Right
-const ventanaExteriorX1RightPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1RightPiso1.position.set(0.6, 3.2, -3.5);
-scene.add(ventanaExteriorX1RightPiso1);
-// Vidrio exterior 1 ventana 1 piso 1
-const vidrio1VentanaExteriorX1Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorX1Piso1.position.set(2, 3.2, -3.5);
-scene.add(vidrio1VentanaExteriorX1Piso1);
-// Vidrio exterior 2 ventana 1 piso 1
-const vidrio2VentanaExteriorX1Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorX1Piso1.position.set(1, 3.2, -3.5);
-scene.add(vidrio2VentanaExteriorX1Piso1);
+// Funciones exportables como solicitó el usuario
+export function ventanaExterior(x, y, z, orientacion = 'X') {
+  return crearVentanaBase(x, y, z, orientacion, 0xffffff, true);
+}
 
-// Ventana exterior 2 piso 1
-// Top
-const ventanaExteriorX2TopPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2TopPiso1.position.set(-1.5, 4.35, -3.5);
-scene.add(ventanaExteriorX2TopPiso1);
-// Horizontal middle
-const ventanaExteriorX2HorizontalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2HorizontalPiso1.position.set(-1.5, 3.2, -3.5);
-scene.add(ventanaExteriorX2HorizontalPiso1);
-// Bottom
-const ventanaExteriorX2BottomPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2BottomPiso1.position.set(-1.5, 2.1, -3.5);
-scene.add(ventanaExteriorX2BottomPiso1);
-// Balcon
-const ventanaExteriorX2BalconPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(2.2, 0.3, 0.4),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2BalconPiso1.position.set(-1.5, 1.85, -3.5);
-scene.add(ventanaExteriorX2BalconPiso1);
-// Left
-const ventanaExteriorX2LeftPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2LeftPiso1.position.set(-2.4, 3.2, -3.5);
-scene.add(ventanaExteriorX2LeftPiso1);
-// Vertical middle
-const ventanaExteriorX2VerticalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2VerticalPiso1.position.set(-1.5, 3.2, -3.5);
-scene.add(ventanaExteriorX2VerticalPiso1);
-// Right
-const ventanaExteriorX2RightPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2RightPiso1.position.set(-0.6, 3.2, -3.5);
-scene.add(ventanaExteriorX2RightPiso1);
-// Vidrio exterior 1 ventana 1 piso 1
-const vidrio1VentanaExteriorX2Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorX2Piso1.position.set(-2, 3.2, -3.5);
-scene.add(vidrio1VentanaExteriorX2Piso1);
-// Vidrio exterior 2 ventana 1 piso 1
-const vidrio2VentanaExteriorX2Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorX2Piso1.position.set(-1, 3.2, -3.5);
-scene.add(vidrio2VentanaExteriorX2Piso1);
+export function ventanaInterior(x, y, z, orientacion = 'X') {
+  return crearVentanaBase(x, y, z, orientacion, 0xdd9966, false);
+}
 
-// Ventanas piso 1 orientadas en eje Z (mirando al Este)
+/**
+ * Crea un piso completo (paredes, techo, luz y ventanas)
+ */
+export function crearPiso(n, yCenter, yCeiling) {
+  const isImpar = n % 2 !== 0;
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 });
 
-// Ventana exterior 1 piso 1 (eje Z)
-// Top
-const ventanaExteriorZ1TopPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1TopPiso1.position.set(-3.5, 4.35, 1.5);
-scene.add(ventanaExteriorZ1TopPiso1);
-// Horizontal middle
-const ventanaExteriorZ1HorizontalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1HorizontalPiso1.position.set(-3.5, 3.2, 1.5);
-scene.add(ventanaExteriorZ1HorizontalPiso1);
-// Bottom
-const ventanaExteriorZ1BottomPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1BottomPiso1.position.set(-3.5, 2.1, 1.5);
-scene.add(ventanaExteriorZ1BottomPiso1);
-// Balcon
-const ventanaExteriorZ1BalconPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.4, 0.3, 2.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1BalconPiso1.position.set(-3.5, 1.85, 1.5);
-scene.add(ventanaExteriorZ1BalconPiso1);
-// Left (frontal, eje Z negativo)
-const ventanaExteriorZ1LeftPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1LeftPiso1.position.set(-3.5, 3.2, 2.4);
-scene.add(ventanaExteriorZ1LeftPiso1);
-// Vertical middle
-const ventanaExteriorZ1VerticalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1VerticalPiso1.position.set(-3.5, 3.2, 1.5);
-scene.add(ventanaExteriorZ1VerticalPiso1);
-// Right (frontal, eje Z positivo)
-const ventanaExteriorZ1RightPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1RightPiso1.position.set(-3.5, 3.2, 0.6);
-scene.add(ventanaExteriorZ1RightPiso1);
-// Vidrio exterior 1 ventana 1 piso 1 (eje Z)
-const vidrio1VentanaExteriorZ1Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorZ1Piso1.position.set(-3.5, 3.2, 2);
-scene.add(vidrio1VentanaExteriorZ1Piso1);
-// Vidrio exterior 2 ventana 1 piso 1 (eje Z)
-const vidrio2VentanaExteriorZ1Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorZ1Piso1.position.set(-3.5, 3.2, 1);
-scene.add(vidrio2VentanaExteriorZ1Piso1);
+  // Paredes (L invertida que alterna según el piso)
+  const pIzq = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 7), wallMat);
+  pIzq.position.set(isImpar ? -3 : 3, yCenter, 0);
+  scene.add(pIzq);
 
-// Ventana exterior 2 piso 1 (eje Z)
-// Top
-const ventanaExteriorZ2TopPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2TopPiso1.position.set(-3.5, 4.35, -1.5);
-scene.add(ventanaExteriorZ2TopPiso1);
-// Horizontal middle
-const ventanaExteriorZ2HorizontalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2HorizontalPiso1.position.set(-3.5, 3.2, -1.5);
-scene.add(ventanaExteriorZ2HorizontalPiso1);
-// Bottom
-const ventanaExteriorZ2BottomPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2BottomPiso1.position.set(-3.5, 2.1, -1.5);
-scene.add(ventanaExteriorZ2BottomPiso1);
-// Balcon
-const ventanaExteriorZ2BalconPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.4, 0.3, 2.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2BalconPiso1.position.set(-3.5, 1.85, -1.5);
-scene.add(ventanaExteriorZ2BalconPiso1);
-// Left (frontal, eje Z negativo)
-const ventanaExteriorZ2LeftPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2LeftPiso1.position.set(-3.5, 3.2, -0.6);
-scene.add(ventanaExteriorZ2LeftPiso1);
-// Vertical middle
-const ventanaExteriorZ2VerticalPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2VerticalPiso1.position.set(-3.5, 3.2, -1.5);
-scene.add(ventanaExteriorZ2VerticalPiso1);
-// Right (frontal, eje Z positivo)
-const ventanaExteriorZ2RightPiso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2RightPiso1.position.set(-3.5, 3.2, -2.4);
-scene.add(ventanaExteriorZ2RightPiso1);
-// Vidrio exterior 1 ventana 2 piso 1 (eje Z)
-const vidrio1VentanaExteriorZ2Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorZ2Piso1.position.set(-3.5, 3.2, -1);
-scene.add(vidrio1VentanaExteriorZ2Piso1);
-// Vidrio exterior 2 ventana 2 piso 1 (eje Z)
-const vidrio2VentanaExteriorZ2Piso1 = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorZ2Piso1.position.set(-3.5, 3.2, -2);
-scene.add(vidrio2VentanaExteriorZ2Piso1);
+  const pDer = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 1), wallMat);
+  pDer.position.set(0, yCenter, isImpar ? -3 : 3);
+  scene.add(pDer);
 
-// Ventanas piso 1 (cara Sur y cara Este, Y duplicado)
+  // Techo
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.5, 7.2), new THREE.MeshStandardMaterial({ color: 0xffccbb, roughness: 0.5 }));
+  techo.position.set(0, yCeiling, 0);
+  scene.add(techo);
 
-// Ventana exterior 1 piso 1 (cara Sur, Y + altura pared)
-// Top
-const ventanaExteriorX1TopPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1TopPiso1Sur.position.set(1.5, 9.35, 3.5);
-scene.add(ventanaExteriorX1TopPiso1Sur);
-// Horizontal middle
-const ventanaExteriorX1HorizontalPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1HorizontalPiso1Sur.position.set(1.5, 8.2, 3.5);
-scene.add(ventanaExteriorX1HorizontalPiso1Sur);
-// Bottom
-const ventanaExteriorX1BottomPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1BottomPiso1Sur.position.set(1.5, 7.1, 3.5);
-scene.add(ventanaExteriorX1BottomPiso1Sur);
-// Balcon
-const ventanaExteriorX1BalconPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2.2, 0.3, 0.4),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1BalconPiso1Sur.position.set(1.5, 6.85, 3.5);
-scene.add(ventanaExteriorX1BalconPiso1Sur);
-// Left
-const ventanaExteriorX1LeftPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1LeftPiso1Sur.position.set(2.4, 8.2, 3.5);
-scene.add(ventanaExteriorX1LeftPiso1Sur);
-// Vertical middle
-const ventanaExteriorX1VerticalPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1VerticalPiso1Sur.position.set(1.5, 8.2, 3.5);
-scene.add(ventanaExteriorX1VerticalPiso1Sur);
-// Right
-const ventanaExteriorX1RightPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX1RightPiso1Sur.position.set(0.6, 8.2, 3.5);
-scene.add(ventanaExteriorX1RightPiso1Sur);
-// Vidrio exterior 1 ventana 1 piso 1 (cara Sur)
-const vidrio1VentanaExteriorX1Piso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorX1Piso1Sur.position.set(2, 8.2, 3.5);
-scene.add(vidrio1VentanaExteriorX1Piso1Sur);
-// Vidrio exterior 2 ventana 1 piso 1 (cara Sur)
-const vidrio2VentanaExteriorX1Piso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorX1Piso1Sur.position.set(1, 8.2, 3.5);
-scene.add(vidrio2VentanaExteriorX1Piso1Sur);
+  // Luz de piso
+  const hLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+  hLight.position.set(isImpar ? 2 : -2, yCenter + (isImpar ? -1.5 : -3), isImpar ? 1 : -1);
+  scene.add(hLight);
 
-// Ventana exterior 2 piso 1 (cara Sur, Y + altura pared)
-// Top
-const ventanaExteriorX2TopPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2TopPiso1Sur.position.set(-1.5, 9.35, 3.5);
-scene.add(ventanaExteriorX2TopPiso1Sur);
-// Horizontal middle
-const ventanaExteriorX2HorizontalPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2HorizontalPiso1Sur.position.set(-1.5, 8.2, 3.5);
-scene.add(ventanaExteriorX2HorizontalPiso1Sur);
-// Bottom
-const ventanaExteriorX2BottomPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2BottomPiso1Sur.position.set(-1.5, 7.1, 3.5);
-scene.add(ventanaExteriorX2BottomPiso1Sur);
-// Balcon
-const ventanaExteriorX2BalconPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(2.2, 0.3, 0.4),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2BalconPiso1Sur.position.set(-1.5, 6.85, 3.5);
-scene.add(ventanaExteriorX2BalconPiso1Sur);
-// Left
-const ventanaExteriorX2LeftPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2LeftPiso1Sur.position.set(-2.4, 8.2, 3.5);
-scene.add(ventanaExteriorX2LeftPiso1Sur);
-// Vertical middle
-const ventanaExteriorX2VerticalPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2VerticalPiso1Sur.position.set(-1.5, 8.2, 3.5);
-scene.add(ventanaExteriorX2VerticalPiso1Sur);
-// Right
-const ventanaExteriorX2RightPiso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorX2RightPiso1Sur.position.set(-0.6, 8.2, 3.5);
-scene.add(ventanaExteriorX2RightPiso1Sur);
-// Vidrio exterior 1 ventana 2 piso 1 (cara Sur)
-const vidrio1VentanaExteriorX2Piso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorX2Piso1Sur.position.set(-2, 8.2, 3.5);
-scene.add(vidrio1VentanaExteriorX2Piso1Sur);
-// Vidrio exterior 2 ventana 2 piso 1 (cara Sur)
-const vidrio2VentanaExteriorX2Piso1Sur = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 2.2, 0.05),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorX2Piso1Sur.position.set(-1, 8.2, 3.5);
-scene.add(vidrio2VentanaExteriorX2Piso1Sur);
+  // Ventanas
+  const windowY = yCenter + 0.7; // Altura relativa
 
-// Ventana exterior 1 piso 1 (cara Este, Y + altura pared)
-// Top
-const ventanaExteriorZ1TopPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1TopPiso1Este.position.set(3.5, 9.35, 1.5);
-scene.add(ventanaExteriorZ1TopPiso1Este);
-// Horizontal middle
-const ventanaExteriorZ1HorizontalPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1HorizontalPiso1Este.position.set(3.5, 8.2, 1.5);
-scene.add(ventanaExteriorZ1HorizontalPiso1Este);
-// Bottom
-const ventanaExteriorZ1BottomPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1BottomPiso1Este.position.set(3.5, 7.1, 1.5);
-scene.add(ventanaExteriorZ1BottomPiso1Este);
-// Balcon
-const ventanaExteriorZ1BalconPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.4, 0.3, 2.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1BalconPiso1Este.position.set(3.5, 6.85, 1.5);
-scene.add(ventanaExteriorZ1BalconPiso1Este);
-// Left (frontal, eje Z negativo)
-const ventanaExteriorZ1LeftPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1LeftPiso1Este.position.set(3.5, 8.2, 2.4);
-scene.add(ventanaExteriorZ1LeftPiso1Este);
-// Vertical middle
-const ventanaExteriorZ1VerticalPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1VerticalPiso1Este.position.set(3.5, 8.2, 1.5);
-scene.add(ventanaExteriorZ1VerticalPiso1Este);
-// Right (frontal, eje Z positivo)
-const ventanaExteriorZ1RightPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ1RightPiso1Este.position.set(3.5, 8.2, 0.6);
-scene.add(ventanaExteriorZ1RightPiso1Este);
-// Vidrio exterior 1 ventana 1 piso 1 (cara Este)
-const vidrio1VentanaExteriorZ1Piso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorZ1Piso1Este.position.set(3.5, 8.2, 2);
-scene.add(vidrio1VentanaExteriorZ1Piso1Este);
-// Vidrio exterior 2 ventana 1 piso 1 (cara Este)
-const vidrio2VentanaExteriorZ1Piso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorZ1Piso1Este.position.set(3.5, 8.2, 1);
-scene.add(vidrio2VentanaExteriorZ1Piso1Este);
+  // Pared 1 (Eje Z)
+  const w1X = isImpar ? -3.5 : 3.5;
+  const w1XInt = isImpar ? -2.4 : 2.4;
+  scene.add(ventanaExterior(w1X, windowY, 1.5, 'Z'));
+  scene.add(ventanaInterior(w1XInt, windowY, 1.5, 'Z'));
+  scene.add(ventanaExterior(w1X, windowY, -1.5, 'Z'));
+  scene.add(ventanaInterior(w1XInt, windowY, -1.5, 'Z'));
 
-// Ventana exterior 2 piso 1 (cara Este, Y + altura pared)
-// Top
-const ventanaExteriorZ2TopPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2TopPiso1Este.position.set(3.5, 9.35, -1.5);
-scene.add(ventanaExteriorZ2TopPiso1Este);
-// Horizontal middle
-const ventanaExteriorZ2HorizontalPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2HorizontalPiso1Este.position.set(3.5, 8.2, -1.5);
-scene.add(ventanaExteriorZ2HorizontalPiso1Este);
-// Bottom
-const ventanaExteriorZ2BottomPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2BottomPiso1Este.position.set(3.5, 7.1, -1.5);
-scene.add(ventanaExteriorZ2BottomPiso1Este);
-// Balcon
-const ventanaExteriorZ2BalconPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.4, 0.3, 2.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2BalconPiso1Este.position.set(3.5, 6.85, -1.5);
-scene.add(ventanaExteriorZ2BalconPiso1Este);
-// Left (frontal, eje Z negativo)
-const ventanaExteriorZ2LeftPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2LeftPiso1Este.position.set(3.5, 8.2, -0.6);
-scene.add(ventanaExteriorZ2LeftPiso1Este);
-// Vertical middle
-const ventanaExteriorZ2VerticalPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2VerticalPiso1Este.position.set(3.5, 8.2, -1.5);
-scene.add(ventanaExteriorZ2VerticalPiso1Este);
-// Right (frontal, eje Z positivo)
-const ventanaExteriorZ2RightPiso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 2.3, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-);
-ventanaExteriorZ2RightPiso1Este.position.set(3.5, 8.2, -2.4);
-scene.add(ventanaExteriorZ2RightPiso1Este);
-// Vidrio exterior 1 ventana 2 piso 1 (cara Este)
-const vidrio1VentanaExteriorZ2Piso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio1VentanaExteriorZ2Piso1Este.position.set(3.5, 8.2, -1);
-scene.add(vidrio1VentanaExteriorZ2Piso1Este);
-// Vidrio exterior 2 ventana 2 piso 1 (cara Este)
-const vidrio2VentanaExteriorZ2Piso1Este = new THREE.Mesh(
-  new THREE.BoxGeometry(0.05, 2.2, 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x66bbff, roughness: 0.5 })
-);
-vidrio2VentanaExteriorZ2Piso1Este.position.set(3.5, 8.2, -2);
-scene.add(vidrio2VentanaExteriorZ2Piso1Este);
+  // Pared 2 (Eje X)
+  const w2Z = isImpar ? -3.5 : 3.5;
+  const w2ZInt = isImpar ? -2.4 : 2.4;
+  scene.add(ventanaExterior(1.5, windowY, w2Z, 'X'));
+  scene.add(ventanaInterior(1.5, windowY, w2ZInt, 'X'));
+  scene.add(ventanaExterior(-1.5, windowY, w2Z, 'X'));
+  scene.add(ventanaInterior(-1.5, windowY, w2ZInt, 'X'));
+}
 
-// Hemisferio de luz piso 1
-const hemisphereLight1Piso1 = new THREE.HemisphereLight( 0xffffff, 0x000000, 3 );
-hemisphereLight1Piso1.position.set(2, 1, 1);
-scene.add( hemisphereLight1Piso1 );
-// const hemisphereLight1Piso1Helper = new THREE.HemisphereLightHelper( hemisphereLight1Piso1, 5 );
-// scene.add( hemisphereLight1Piso1Helper );
+// Alias solicitados
+export function pisoImpar(yCenter, yCeiling) { crearPiso(1, yCenter, yCeiling); }
+export function pisoPar(yCenter, yCeiling) { crearPiso(2, yCenter, yCeiling); }
 
-// Luz punto piso 1
-// const pointLight1Piso1 = new THREE.PointLight(0xffffff, 5, 5, 0);
-// pointLight1Piso1.position.set(2, 0.5, -5);
-// scene.add(pointLight1Piso1);
-// const pointLight1Piso1Helper = new THREE.PointLightHelper( pointLight1Piso1, 5 );
-// scene.add( pointLight1Piso1Helper );
+// --- Construcción del Edificio ---
+
+const floorCenters = [2.5, 8, 13, 18, 23, 27.5];
+const ceilingCenters = [5.25, 10.5, 15.5, 20.5, 25.5, 30];
+
+for (let i = 0; i < floorCenters.length; i++) {
+  crearPiso(i + 1, floorCenters[i], ceilingCenters[i]);
+}
+
+// Nuevo techo extra encima del último piso (Piso 6) y debajo de los barandales del balcón
+const balconTopMat = new THREE.MeshStandardMaterial({ color: 0xffccbb, roughness: 0.5 });
+const techoExtra = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.5, 7.2), balconTopMat);
+techoExtra.position.set(0, 30.5, 0); // Posicionado para que los barandales del balcón sobresalgan un poco
+scene.add(techoExtra);
+
+// Balcón superior al final del edificio (Piso 6)
+
+const balconTopParts = [
+  { s: [7.2, 0.5, 0.5], p: [0, 31, -3.35] },
+  { s: [7.2, 0.5, 0.5], p: [0, 31, 3.35] },
+  { s: [0.5, 0.5, 7.2], p: [3.35, 31, 0] },
+  { s: [0.5, 0.5, 7.2], p: [-3.35, 31, 0] }
+];
+balconTopParts.forEach(part => {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...part.s), balconTopMat);
+  mesh.position.set(...part.p);
+  scene.add(mesh);
+});
+
+// --- Escena Decorativa y Luces ---
+
+const centerY = 15;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Luz ambiental para aclararlo todo
+scene.add(ambientLight);
+
+const directionalLights = [
+  { p: [0, 25, -50], t: [0, 5, 0] }, // Norte
+  { p: [0, 25, 50], t: [0, 5, 0] },  // Sur
+  { p: [50, 25, 0], t: [0, 5, 0] },  // Este
+  { p: [-50, 25, 0], t: [0, 5, 0] }  // Oeste
+];
+directionalLights.forEach(config => {
+  const l = new THREE.DirectionalLight(0xffffff, 1.0); // Aumentada intensidad de 0.8 a 1.0
+  l.position.set(...config.p);
+  l.target.position.set(...config.t);
+  l.castShadow = true;
+  scene.add(l);
+  scene.add(l.target);
+});
+
+// Luz puntual extra para el astronauta y el cohete en la azotea
+const topLight = new THREE.PointLight(0xffffff, 1.5, 20);
+topLight.position.set(0, 35, 0);
+scene.add(topLight);
+
+// Suelo
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x33bb33 }));
+ground.rotation.x = -Math.PI / 2;
+
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Camera inicial
+const camRadius = -Math.sqrt(10**2 + 10**2); // Distancia original en el plano XZ
+camera.position.set(10, 35, 10);
+camera.lookAt(0, 35, 0);
 
 
-// Piso 2 con 2 paredes y un techo
+// --- Lógica de Scroll ---
+let scrollPercent = 0;
+document.body.style.height = '5000px'; // Asegura que haya espacio para scroll
 
-// Pared izquierda con 2 ventanas
-const paredIzquierda2 = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 5, 7),
-  new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 })
-);
-paredIzquierda2.position.set(3, 8, 0);
-scene.add(paredIzquierda2);
+window.addEventListener('scroll', () => {
+    scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+});
 
-const paredDerecha2 = new THREE.Mesh(
-  new THREE.BoxGeometry(7, 5, 1),
-  new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 })
-);
-paredDerecha2.position.set(0, 8, 3);
-scene.add(paredDerecha2);
-
-const techo2 = new THREE.Mesh(
-  new THREE.BoxGeometry(7.2, 0.5, 7.2),
-  new THREE.MeshStandardMaterial({ color: 0xffccbb, roughness: 0.5 })
-);
-techo2.position.set(0, 10.5, 0);
-scene.add(techo2);
-
-// Hemisferio de luz piso 2
-const hemisphereLight1Piso2 = new THREE.HemisphereLight( 0xffffff, 0x000000, 3 );
-hemisphereLight1Piso2.position.set(-2, 5, -1);
-scene.add( hemisphereLight1Piso2 );
-// const hemisphereLight1Piso2Helper = new THREE.HemisphereLightHelper( hemisphereLight1Piso2, 5 );
-// scene.add( hemisphereLight1Piso2Helper );
-
-// Luz punto piso 2
-// const pointLight1Piso2 = new THREE.PointLight(0xffffff, 5, 5, 0);
-// pointLight1Piso2.position.set(-2, 6, 5);
-// scene.add(pointLight1Piso2);
-// const pointLight1Piso2Helper = new THREE.PointLightHelper( pointLight1Piso2, 5 );
-// scene.add( pointLight1Piso2Helper );
+// OrbitControls comentados como solicitó el usuario
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.update();
 
 
-// Plane
-const planeGeometry = new THREE.PlaneGeometry(20, 20, 12, 12);
-const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x33bb33 });
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-plane.receiveShadow = true;
-plane.position.set(0, 0, 0);
-plane.rotation.x = -Math.PI / 2;
-scene.add(plane);
+// --- Modelos Externos ---
 
-// Grid
-// const grid = new THREE.GridHelper(10, 10);
-// scene.add(grid);
+const clock = new THREE.Clock();
+const gltfLoader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
+const textureLoader = new THREE.TextureLoader();
 
-// Camera
-camera.position.z = 10;
-camera.position.y = 10;
-camera.position.x = 0;
-// camera.rotation.x = -Math.PI / 2;
+// Astronauta
+let astronautMixer;
+gltfLoader.load('./assets/models/astronaut-waving/source/astronaut.glb', (gltf) => {
+    const model = gltf.scene;
+    model.scale.set(1.2, 1.2, 1.2); // Escala más natural para GLTF en este entorno
+    model.position.set(1.5, 30.8, 1.5); // En la azotea, cerca de la esquina
+    model.rotation.y = 1.5;
+    scene.add(model);
 
-// OrbitControls
-const controls = new OrbitControls( camera, renderer.domElement );
-controls.update();
+    model.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
 
+    if (gltf.animations && gltf.animations.length > 0) {
+        astronautMixer = new THREE.AnimationMixer(model);
+        gltf.animations.forEach((clip) => {
+            astronautMixer.clipAction(clip).play();
+        });
+    }
+}, undefined, (e) => console.error('Error astronaut:', e.message));
+
+// Cohete
+gltfLoader.load('./assets/rocket/rocket/scene.gltf', (gltf) => {
+    const model = gltf.scene;
+    model.position.set(-1.4, 32.8, -1.4); // Un poco más alejado para que no se pise con el astronauta
+    model.scale.set(4, 4, 4); // Agrandado de 0.5 a 0.8 como solicitó el usuario
+    scene.add(model);
+}, undefined, (e) => console.error('Error cohete:', e.message));
+
+// AJ
+let ajMixer;
+fbxLoader.load('./assets/characters/aj-character.fbx', (fbx) => {
+    const model = fbx;
+    model.position.set(-1.5, 25.7, -1);
+    model.rotation.y = 10;
+    model.scale.set(0.015, 0.015, 0.015);
+    scene.add(model);
+
+    // Restaurar animación waving para AJ
+    fbxLoader.load('./assets/animations/waving.fbx', (animFbx) => {
+        ajMixer = new THREE.AnimationMixer(model);
+        const action = ajMixer.clipAction(animFbx.animations[0]);
+        action.play();
+    });
+}, undefined, (e) => console.error('Error aj:', e.message));
+
+// Pizarra
+gltfLoader.load('./assets/models/whiteboard.glb', (gltf) => {
+    const model = gltf.scene;
+    model.position.set(0, 27.3, 2);
+    model.scale.set(2.5,2.5,2.5);
+    model.rotation.y = 3.2;
+    scene.add(model);
+}, undefined, (e) => console.error('Error cohete:', e.message));
+
+// Programador
+let programmerMixer;
+gltfLoader.load('./assets/models/programmer/scene.gltf', (gltf) => {
+    const model = gltf.scene;
+    model.scale.set(0.3, 0.3, 0.3);
+    model.position.set(2, 20.7, 0);
+    model.rotation.y = Math.PI; // Rotar para que mire hacia el frente
+    scene.add(model);
+
+    model.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    if (gltf.animations && gltf.animations.length > 0) {
+        programmerMixer = new THREE.AnimationMixer(model);
+        gltf.animations.forEach((clip) => {
+            programmerMixer.clipAction(clip).play();
+        });
+    }
+}, undefined, (e) => console.error('Error programmer:', e.message));
+
+
+
+// --- Bucle de Animación ---
 function animate() {
   requestAnimationFrame(animate);
-  // cube.rotation.x += 0.01;
-  // cube.rotation.y += 0.01;
+  const delta = clock.getDelta();
+
+  // Actualizar rotación y altura de cámara según scroll
+  const angle = scrollPercent * Math.PI * 2; // Una vuelta completa
+  const currentHeight = 32 - (scrollPercent * 15); // Baja de 30 a 2
+
+  camera.position.x = Math.cos(angle) * -camRadius;
+  camera.position.y = currentHeight;
+  camera.position.z = Math.sin(angle) * camRadius;
+
+  camera.lookAt(-3, currentHeight, 0); // Mantiene vista horizontal siguiendo la altura
+
+
+
+  if (astronautMixer) astronautMixer.update(delta);
+  if (ajMixer) ajMixer.update(delta);
+  if (programmerMixer) programmerMixer.update(delta);
   renderer.render(scene, camera);
 }
 
 animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
