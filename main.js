@@ -192,12 +192,23 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // Camera inicial
-camera.position.set(10, 55, 20);
-camera.lookAt(0, 15, 0);
-camera.rotation.x = -Math.PI / 12;
+const camRadius = -Math.sqrt(10**2 + 10**2); // Distancia original en el plano XZ
+camera.position.set(10, 35, 10);
+camera.lookAt(0, 35, 0);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.update();
+
+// --- Lógica de Scroll ---
+let scrollPercent = 0;
+document.body.style.height = '5000px'; // Asegura que haya espacio para scroll
+
+window.addEventListener('scroll', () => {
+    scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+});
+
+// OrbitControls comentados como solicitó el usuario
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.update();
+
 
 // --- Modelos Externos ---
 
@@ -206,27 +217,13 @@ const gltfLoader = new GLTFLoader();
 const fbxLoader = new FBXLoader();
 const textureLoader = new THREE.TextureLoader();
 
-// Cargar texturas del astronauta
-const astroTex = {
-    map: textureLoader.load('./assets/astronaut/textures/DefaultMaterial_BaseColor.png'),
-    normalMap: textureLoader.load('./assets/astronaut/textures/DefaultMaterial_Normal.png'),
-    metalnessMap: textureLoader.load('./assets/astronaut/textures/DefaultMaterial_Metallic.png'),
-    roughnessMap: textureLoader.load('./assets/astronaut/textures/DefaultMaterial_Roughness.png'),
-    displacementMap: textureLoader.load('./assets/astronaut/textures/DefaultMaterial_Displacement.png'),
-};
-
-astroTex.map.colorSpace = THREE.SRGBColorSpace;
-Object.values(astroTex).forEach(t => {
-    if (t) t.flipY = false;
-});
-
 // Astronauta
 let astronautMixer;
 gltfLoader.load('./assets/models/astronaut-waving/source/astronaut.glb', (gltf) => {
     const model = gltf.scene;
     model.scale.set(1.2, 1.2, 1.2); // Escala más natural para GLTF en este entorno
-    model.position.set(-1.5, 30.5, 1.5); // En la azotea, cerca de la esquina
-    model.rotation.y = 0.5;
+    model.position.set(1.5, 30.8, 1.5); // En la azotea, cerca de la esquina
+    model.rotation.y = 1.5;
     scene.add(model);
 
     model.traverse((child) => {
@@ -247,7 +244,7 @@ gltfLoader.load('./assets/models/astronaut-waving/source/astronaut.glb', (gltf) 
 // Cohete
 gltfLoader.load('./assets/rocket/rocket/scene.gltf', (gltf) => {
     const model = gltf.scene;
-    model.position.set(1.4, 32.8, -1.4); // Un poco más alejado para que no se pise con el astronauta
+    model.position.set(-1.4, 32.8, -1.4); // Un poco más alejado para que no se pise con el astronauta
     model.scale.set(4, 4, 4); // Agrandado de 0.5 a 0.8 como solicitó el usuario
     scene.add(model);
 }, undefined, (e) => console.error('Error cohete:', e.message));
@@ -305,15 +302,28 @@ gltfLoader.load('./assets/models/programmer/scene.gltf', (gltf) => {
 
 
 // --- Bucle de Animación ---
-
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
+
+  // Actualizar rotación y altura de cámara según scroll
+  const angle = scrollPercent * Math.PI * 2; // Una vuelta completa
+  const currentHeight = 32 - (scrollPercent * 15); // Baja de 30 a 2
+
+  camera.position.x = Math.cos(angle) * -camRadius;
+  camera.position.y = currentHeight;
+  camera.position.z = Math.sin(angle) * camRadius;
+
+  camera.lookAt(-3, currentHeight, 0); // Mantiene vista horizontal siguiendo la altura
+
+
+
   if (astronautMixer) astronautMixer.update(delta);
   if (ajMixer) ajMixer.update(delta);
   if (programmerMixer) programmerMixer.update(delta);
   renderer.render(scene, camera);
 }
+
 animate();
 
 window.addEventListener('resize', () => {
